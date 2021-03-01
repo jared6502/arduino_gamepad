@@ -5,17 +5,15 @@
 //arduino controller reader device count
 //unmodified arduino code streams out data for up to 8 NES/SNES gamepads
 #define DEVCOUNT 8
+#define GETBIT(a,b) (((a) & (1 << (b))) ? 1 : 0)
+#define false 0
+#define true (!(false))
 
 int main(int argc, char **argv)
 {
     int err[8];
 
-    //libevdev_uinput_write_event(uidev, EV_KEY, KEY_A, 1);
-    //libevdev_uinput_write_event(uidev, EV_SYN, SYN_REPORT, 0);
-    //libevdev_uinput_write_event(uidev, EV_KEY, KEY_A, 0);
-    //libevdev_uinput_write_event(uidev, EV_SYN, SYN_REPORT, 0);
-	
-	int i;
+    int i;
 	struct libevdev *dev[DEVCOUNT];
 	struct libevdev_uinput *uidev[DEVCOUNT];
 	char devname[9] = { 'A', 'r', 'd', 'u', 'P', 'a', 'd', '0', '\0' };
@@ -68,10 +66,40 @@ int main(int argc, char **argv)
 		}
 	}
 	
+	//main loop
 	do
 	{
+		//Packet format:
+		//     start       |    gamepad 1    |...|    gamepad 8
+		//76543210 76543210|76543210 76543210|...|76543210 76543210
+		//00000000 11111111|----RLXA ><v^TSYB|...|----RLXA ><v^TSYB
 		
-	}
+		//wait for 0x00 0xFF packet start sequence
+		while(fgetc(arduino) != 0x00);
+		while(fgetc(arduino) != 0xFF);
+
+		//packet start received, get input bytes and decode
+		for (int i = 0; i < DEVCOUNT; i++)
+		{
+			char inputs[2];
+			inputs[0] = fgetc(arduino);
+			inputs[1] = fgetc(arduino);
+
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_A, GETBIT(inputs[0], 0));
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_X, GETBIT(inputs[0], 1));
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TL, GETBIT(inputs[0], 2));
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TR, GETBIT(inputs[0], 3));
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_B, GETBIT(inputs[1], 0));
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_Y, GETBIT(inputs[1], 1));
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_SELECT, GETBIT(inputs[1], 2));
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_START, GETBIT(inputs[1], 3));
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_NORTH, GETBIT(inputs[1], 4));
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_SOUTH, GETBIT(inputs[1], 5));
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_WEST, GETBIT(inputs[1], 6));
+			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_EAST, GETBIT(inputs[1], 7));
+			libevdev_uinput_write_event(uidev[i], EV_SYN, SYN_REPORT, 0);
+		}
+	} while (true);
 		
 	//clean up devices if exiting
 	for (i = 0; i < DEVCOUNT; i++)

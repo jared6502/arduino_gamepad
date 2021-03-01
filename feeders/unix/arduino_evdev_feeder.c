@@ -1,6 +1,20 @@
 #include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <termios.h>
 #include <libevdev.h>
 #include <libevdev-uinput.h>
+
+//#define serial_file
+#define DEBUG
+
+#ifndef DEBUG
+#define printf ignore_printf
+void ignore_printf()
+{
+	return;
+}
+#endif
 
 //arduino controller reader device count
 //unmodified arduino code streams out data for up to 8 NES/SNES gamepads
@@ -8,6 +22,23 @@
 #define GETBIT(a,b) (((a) & (1 << (b))) ? 1 : 0)
 #define false 0
 #define true (!(false))
+
+#ifdef serial_file
+#define getbyte fgetc
+#else
+char getbyte(int port)
+{
+	char c;
+
+	//printf("Reading character.\n");
+	while (read(port, &c, 1) < 1);
+	int i = c & 0xFF;
+	//printf("%0#2x\n", i);
+	//printf("Character read.\n");
+
+	return c;
+}
+#endif
 
 int main(int argc, char **argv)
 {
@@ -18,7 +49,13 @@ int main(int argc, char **argv)
 	struct libevdev_uinput *uidev[DEVCOUNT];
 	char devname[9] = { 'A', 'r', 'd', 'u', 'P', 'a', 'd', '0', '\0' };
 
+	struct termios options;
+
+	#ifdef serial_file
 	FILE *arduino;
+	#else
+	int arduino;
+	#endif
 	char *serialport;
 	
 	//check for file path to open
@@ -31,12 +68,63 @@ int main(int argc, char **argv)
 	serialport = argv[1];
 	
 	//open file, no point in doing anything else until this is done
-	arduino = fopen(serialport, "rw");
+	printf("Opening port %s.\n", serialport);
+	#ifdef serial_file
+	arduino = fopen(serialport, "rwb+");
+	#else
+	arduino = open(serialport, O_RDWR | O_NOCTTY | O_NDELAY);
 
+	tcgetattr(arduino, &options);
+	cfsetispeed(&options, B115200);
+	cfsetospeed(&options, B115200);
+	//options.c_cflag &= ~CSIZE;
+	//options.c_cflag |= CS8 | CLOCAL | CREAD | CSTOPB; //8N2
+	options.c_cflag |= (CS8 | HUPCL | CREAD | CLOCAL | CSTOPB);
+
+	//options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); //raw data
+	options.c_lflag = 0;
+
+	//options.c_iflag &= ~(INPCK | IXON | IXOFF | IXANY); //disable parity checks, flow control
+	//options.c_iflag |= IGNBRK | IGNCR | INLCR; //ignore break, carriage return. line feed
+	options.c_iflag = 0;
+
+	//options.c_oflag &= ~OPOST; //raw data
+	options.c_oflag = 0;
+
+	options.c_cc[VMIN]  = 0;
+    options.c_cc[VTIME] = 0;
+
+	tcsetattr(arduino, TCSANOW, &options); //apply settings
+	#endif
+
+	#ifdef serial_file
 	if (arduino == 0)
+	#else
+	if (arduino < 0)
+	#endif
 	{
 		printf("Failed to open %s.\n", serialport);
+		return -1;
 	}
+
+	printf("Handle: %i\n", arduino);
+
+	// ---test
+	do
+	{
+		char test[18];
+
+		for(int i = 0; i < 18; i++)
+		{
+			test[i] = getbyte(arduino);
+			printf("%0#2x ", test[i] & 0xFF);
+		}
+		printf("\n");
+
+	} while (true);
+	// ---test
+
+	printf("Serial port opened, creating devices...\n");
 	 
 	//create pseudo-devices	
 	for (i = 0; i < DEVCOUNT; i++)
@@ -62,9 +150,15 @@ int main(int argc, char **argv)
 		
 		if (err[i] != 0)
 		{
-			printf("Failed to create device %i: %i.\n", i, err);
+			printf("Failed to create device %s (%i): %i.\n", devname, i, err[i]);
+		}
+		else
+		{
+			printf("Create device %s (%i)\n", devname, i);
 		}
 	}
+
+	printf("Device creation finished, feeding inputs.\n");
 	
 	//main loop
 	do
@@ -74,16 +168,20 @@ int main(int argc, char **argv)
 		//76543210 76543210|76543210 76543210|...|76543210 76543210
 		//00000000 11111111|----RLXA ><v^TSYB|...|----RLXA ><v^TSYB
 		
+		printf("Waiting for input packet.\n");
+
 		//wait for 0x00 0xFF packet start sequence
-		while(fgetc(arduino) != 0x00);
-		while(fgetc(arduino) != 0xFF);
+		while(getbyte(arduino) != 0x00);
+		while(getbyte(arduino) != 0xFF);
+
+		printf("Got input packet.\n");
 
 		//packet start received, get input bytes and decode
 		for (int i = 0; i < DEVCOUNT; i++)
 		{
 			char inputs[2];
-			inputs[0] = fgetc(arduino);
-			inputs[1] = fgetc(arduino);
+			inputs[0] = getbyte(arduino);
+			inputs[1] = getbyte(arduino);
 
 			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_A, GETBIT(inputs[0], 0));
 			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_X, GETBIT(inputs[0], 1));

@@ -43,7 +43,7 @@ clock        |__|  |__|  |__|  |__|  |__|  |__|  |__|  |__|  |__|  |__|  |__|  |
                         _____________________________       ____________________________________________________
 data  xx_______________|                             |_____|
 
-	While the button order above may seem like a significant change between NES and SNES (A/B becomes B/Y), it makes sense due to the physical button layout. It also means that NES and SNES controllers are interchangeable whenever the extra buttons are not needed, such as in games like Super Mario.
+	While the button order change between NES and SNES may seem odd (A/B becomes B/Y), it makes sense due to the physical button layout. It also means that NES and SNES controllers are interchangeable whenever the extra buttons are not needed, such as in games like Super Mario.
 
 NES
   ^

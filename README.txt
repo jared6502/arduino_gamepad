@@ -61,7 +61,7 @@ SNES
 Packet format:
      start       |    gamepad 1    |...|    gamepad 8
 76543210 76543210|76543210 76543210|...|76543210 76543210
-00000000 11111111|----RLXA ><v^TSYB|...|----RLXA ><v^TSYB
+00000000 11111111|BYST^v<> AXLR----|...|BYST^v<> AXLR----
 
 In this case, the bits are 1 = pressed, 0 = not pressed, which is the opposite of the raw input signal state.
 

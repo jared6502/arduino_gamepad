@@ -43,7 +43,7 @@ clock        |__|  |__|  |__|  |__|  |__|  |__|  |__|  |__|  |__|  |__|  |__|  |
                         _____________________________       ____________________________________________________
 data  xx_______________|                             |_____|
 
-	While the button order above may seem like a significant change between NES and SNES (A/B becomes B/Y), it makes sense due to the physical button layout. It also means that NES and SNES controllers are interchangeable whenever the extra buttons are not needed, such as in games like Super Mario.
+	While the button order change between NES and SNES may seem odd (A/B becomes B/Y), it makes sense due to the physical button layout. It also means that NES and SNES controllers are interchangeable whenever the extra buttons are not needed, such as in games like Super Mario.
 
 NES
   ^
@@ -73,4 +73,8 @@ Feeders
 Contains a simple feeder program made from the vJoy feeder example. It reads the button inputs from the serial port and feeds them to the vJoy driver. It requires the installation of the vJoy driver to function. Building and using it may require installing a specific version of the driver and/or SDK. This feeder was originally built and tested with vJoy 2.1.8 on both Windows 7 and Windows 10.
 
 /feeders/unix
-Contains a simple C program that reads the button inputs from the serial port and feeds them to the OS using libevdev. 
+Contains a simple C program that reads the button inputs from the serial port and feeds them to the OS using libevdev. This should build correctly using the command:
+gcc arduino_evdev_feeder.c -levdev -o feeder
+
+Depending on OS, you may have to specify include and library paths. An example of this is in the file build.sh.
+

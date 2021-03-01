@@ -77,4 +77,5 @@ Contains a simple C program that reads the button inputs from the serial port an
 gcc arduino_evdev_feeder.c -levdev -o feeder
 
 Depending on OS, you may have to specify include and library paths. An example of this is in the file build.sh.
+Feeder is currently broken, but has been uploaded anyway.
 

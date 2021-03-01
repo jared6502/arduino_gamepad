@@ -361,5 +361,4 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-feeder/unix/feeder
-
+feeders/unix/feeder

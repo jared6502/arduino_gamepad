@@ -61,7 +61,7 @@ SNES
 Packet format:
      start       |    gamepad 1    |...|    gamepad 8
 76543210 76543210|76543210 76543210|...|76543210 76543210
-00000000 11111111|----RLXA ><v^TSYB|...|----RLXA ><v^TSYB
+00000000 11111111|BYST^v<> AXLR----|...|BYST^v<> AXLR----
 
 In this case, the bits are 1 = pressed, 0 = not pressed, which is the opposite of the raw input signal state.
 
@@ -77,4 +77,5 @@ Contains a simple C program that reads the button inputs from the serial port an
 gcc arduino_evdev_feeder.c -levdev -o feeder
 
 Depending on OS, you may have to specify include and library paths. An example of this is in the file build.sh.
+Feeder is currently broken, but has been uploaded anyway.
 

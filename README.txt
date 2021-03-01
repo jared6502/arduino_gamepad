@@ -73,4 +73,8 @@ Feeders
 Contains a simple feeder program made from the vJoy feeder example. It reads the button inputs from the serial port and feeds them to the vJoy driver. It requires the installation of the vJoy driver to function. Building and using it may require installing a specific version of the driver and/or SDK. This feeder was originally built and tested with vJoy 2.1.8 on both Windows 7 and Windows 10.
 
 /feeders/unix
-Contains a simple C program that reads the button inputs from the serial port and feeds them to the OS using libevdev. 
+Contains a simple C program that reads the button inputs from the serial port and feeds them to the OS using libevdev. This should build correctly using the command:
+gcc arduino_evdev_feeder.c -levdev -o feeder
+
+Depending on OS, you may have to specify include and library paths. An example of this is in the file build.sh.
+

@@ -11,7 +11,7 @@ This is a set of simple programs for attaching SNES controllers to a computer.
 Arduino Sketch
 --------------------------------------------------
 
-Button name reference:
+Button code reference:
 A - A
 B - B
 X - X
@@ -46,9 +46,9 @@ data  xx_______________|                             |_____|
 	While the button order above may seem like a significant change between NES and SNES (A/B becomes B/Y), it makes sense due to the physical button layout. It also means that NES and SNES controllers are interchangeable whenever the extra buttons are not needed, such as in games like Super Mario.
 
 NES
- ^
-< > - - B A
- v
+  ^
+<   > - - B  A
+  v
 
 SNES
   L         R
@@ -56,10 +56,12 @@ SNES
 <   > - - Y   A
   v         B
 
-  These bit streams are gathered from up to 8 different controllers using only ten I/O pins by sharing the clock and latch signals across all controller ports. Once data is gathered from all controllers, it is streamed out through the serial port. A "packet" of input data normally starts with 0x00 0xFF, as this is not a button combination that is possible on the majority of NES/SNES gamepads and their clones. It is then followed by eight 16-bit words of data in the following format:
+  These bit streams are gathered from up to 8 different controllers using only ten I/O pins by sharing the clock and latch signals across all controller ports. Once data is gathered from all controllers, it is streamed out through the serial port. A "packet" of input data normally starts with 0x00 0xFF, as this is not a button combination that is possible on the majority of NES/SNES gamepads and their clones. It is then followed by eight 16-bit words of data.
   
-FEDCBA98 76543210
-----RLXA ><v^TSYB
+Packet format:
+     start       |    gamepad 1    |...|    gamepad 8
+76543210 76543210|76543210 76543210|...|76543210 76543210
+00000000 11111111|----RLXA ><v^TSYB|...|----RLXA ><v^TSYB
 
 In this case, the bits are 1 = pressed, 0 = not pressed, which is the opposite of the raw input signal state.
 

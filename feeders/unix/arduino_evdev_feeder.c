@@ -2,11 +2,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
+#include <errno.h>
+#include <string.h>
 #include <libevdev.h>
 #include <libevdev-uinput.h>
 
 //#define serial_file
 #define DEBUG
+//#define READTEST
 
 #ifndef DEBUG
 #define printf ignore_printf
@@ -26,15 +29,18 @@ void ignore_printf()
 #ifdef serial_file
 #define getbyte fgetc
 #else
-char getbyte(int port)
+unsigned char getbyte(int port)
 {
-	char c;
+	unsigned char c;
+	int result;
 
 	//printf("Reading character.\n");
-	while (read(port, &c, 1) < 1);
-	int i = c & 0xFF;
-	//printf("%0#2x\n", i);
-	//printf("Character read.\n");
+	do
+	{
+		result = read(port, &c, 1);
+	}
+	while (result < 1);
+	//printf("Character read: %x.\n", c);
 
 	return c;
 }
@@ -72,29 +78,23 @@ int main(int argc, char **argv)
 	#ifdef serial_file
 	arduino = fopen(serialport, "rwb+");
 	#else
-	arduino = open(serialport, O_RDWR | O_NOCTTY | O_NDELAY);
+	arduino = open(serialport, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);
+	if (arduino == -1)
+	{
+		printf("Couldn't open serial port.\n");
+		return -1;
+	}
+	printf("Serial port handle: %i\n", arduino);
+	fcntl(arduino, F_SETFL, 0);
 
-	tcgetattr(arduino, &options);
-	cfsetispeed(&options, B115200);
-	cfsetospeed(&options, B115200);
-	//options.c_cflag &= ~CSIZE;
-	//options.c_cflag |= CS8 | CLOCAL | CREAD | CSTOPB; //8N2
-	options.c_cflag |= (CS8 | HUPCL | CREAD | CLOCAL | CSTOPB);
+	printf("Changing port settings...\n");
+	printf("tcgetattr() = %i errno = %i - %s\n", tcgetattr(arduino, &options), errno, strerror(errno));
+	
+	cfmakeraw(&options);
+	cfsetspeed(&options, B115200);
 
-	//options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); //raw data
-	options.c_lflag = 0;
-
-	//options.c_iflag &= ~(INPCK | IXON | IXOFF | IXANY); //disable parity checks, flow control
-	//options.c_iflag |= IGNBRK | IGNCR | INLCR; //ignore break, carriage return. line feed
-	options.c_iflag = 0;
-
-	//options.c_oflag &= ~OPOST; //raw data
-	options.c_oflag = 0;
-
-	options.c_cc[VMIN]  = 0;
-    options.c_cc[VTIME] = 0;
-
-	tcsetattr(arduino, TCSANOW, &options); //apply settings
+	printf("tcsetattr() = %i errno = %i - %s\n", tcsetattr(arduino, TCSANOW, &options), errno, strerror(errno)); //apply settings
+	
 	#endif
 
 	#ifdef serial_file
@@ -109,20 +109,27 @@ int main(int argc, char **argv)
 
 	printf("Handle: %i\n", arduino);
 
+#ifdef READTEST
 	// ---test
 	do
 	{
 		char test[18];
-
+		int result;
+	
+		result = read(arduino, test, 18);
+	
+		printf("read result: %i - errno %i - %s\n", result, errno, strerror(errno));
+	
 		for(int i = 0; i < 18; i++)
 		{
-			test[i] = getbyte(arduino);
+			//test[i] = getbyte(arduino);
 			printf("%0#2x ", test[i] & 0xFF);
 		}
 		printf("\n");
-
+	
 	} while (true);
 	// ---test
+	#endif
 
 	printf("Serial port opened, creating devices...\n");
 	 
@@ -160,42 +167,114 @@ int main(int argc, char **argv)
 
 	printf("Device creation finished, feeding inputs.\n");
 	
+	unsigned char inputs[16];
+	unsigned char prv_inputs[16];
+	unsigned char changed_inputs[16];
+
+	for(int i = 0; i < 16; i++)
+	{
+		inputs[i] = prv_inputs[i] = changed_inputs[i] = 0;
+	}
+
 	//main loop
 	do
 	{
 		//Packet format:
 		//     start       |    gamepad 1    |...|    gamepad 8
 		//76543210 76543210|76543210 76543210|...|76543210 76543210
-		//00000000 11111111|----RLXA ><v^TSYB|...|----RLXA ><v^TSYB
+		//00000000 11111111|BYST^v<> AXLR----|...|BYST^v<> AXLR----
 		
-		printf("Waiting for input packet.\n");
+		//printf("Waiting for input packet.\n");
 
 		//wait for 0x00 0xFF packet start sequence
 		while(getbyte(arduino) != 0x00);
 		while(getbyte(arduino) != 0xFF);
 
-		printf("Got input packet.\n");
+		//printf("Got input packet.\n");
 
-		//packet start received, get input bytes and decode
+		//read remaining 16 bytes of packet
+		read(arduino, inputs, 16);
+
+		//get info on which inputs have changed since last read
+		for (int i = 0; i < 16; i++)
+		{
+			changed_inputs[i] = inputs[i] ^ prv_inputs[i];
+			prv_inputs[i] = inputs[i];
+		}
+
 		for (int i = 0; i < DEVCOUNT; i++)
 		{
-			char inputs[2];
-			inputs[0] = getbyte(arduino);
-			inputs[1] = getbyte(arduino);
+			if (GETBIT(changed_inputs[i << 1], 0))
+			{
+				printf("Gamepad %i - > button state: %i\n", i, GETBIT(inputs[i << 1], 0));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_EAST, GETBIT(inputs[i << 1], 0));
+			}
 
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_A, GETBIT(inputs[0], 0));
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_X, GETBIT(inputs[0], 1));
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TL, GETBIT(inputs[0], 2));
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TR, GETBIT(inputs[0], 3));
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_B, GETBIT(inputs[1], 0));
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_Y, GETBIT(inputs[1], 1));
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_SELECT, GETBIT(inputs[1], 2));
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_START, GETBIT(inputs[1], 3));
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_NORTH, GETBIT(inputs[1], 4));
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_SOUTH, GETBIT(inputs[1], 5));
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_WEST, GETBIT(inputs[1], 6));
-			libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_EAST, GETBIT(inputs[1], 7));
-			libevdev_uinput_write_event(uidev[i], EV_SYN, SYN_REPORT, 0);
+			if (GETBIT(changed_inputs[i << 1], 1))
+			{
+				printf("Gamepad %i - < button state: %i\n", i, GETBIT(inputs[i << 1], 1));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_WEST, GETBIT(inputs[i << 1], 1));
+			}
+
+			if (GETBIT(changed_inputs[i << 1], 2))
+			{
+				printf("Gamepad %i - v button state: %i\n", i, GETBIT(inputs[i << 1], 2));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_SOUTH, GETBIT(inputs[i << 1], 2));
+			}
+
+			if (GETBIT(changed_inputs[i << 1], 3))
+			{
+				printf("Gamepad %i - ^ button state: %i\n", i, GETBIT(inputs[i << 1], 3));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_NORTH, GETBIT(inputs[i << 1], 3));
+			}
+
+			if (GETBIT(changed_inputs[i << 1], 4))
+			{
+				printf("Gamepad %i - START button state: %i\n", i, GETBIT(inputs[i << 1], 4));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_START, GETBIT(inputs[i << 1], 4));
+			}
+
+			if (GETBIT(changed_inputs[i << 1], 5))
+			{
+				printf("Gamepad %i - SELECT button state: %i\n", i, GETBIT(inputs[i << 1], 5));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_START, GETBIT(inputs[i << 1], 5));
+			}
+
+			if (GETBIT(changed_inputs[i << 1], 6))
+			{
+				printf("Gamepad %i - Y button state: %i\n", i, GETBIT(inputs[i << 1], 6));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_Y, GETBIT(inputs[i << 1], 6));
+			}
+
+			if (GETBIT(changed_inputs[i << 1], 7))
+			{
+				printf("Gamepad %i - B button state: %i\n", i, GETBIT(inputs[i << 1], 7));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_B, GETBIT(inputs[i << 1], 7));
+			}
+
+			if (GETBIT(changed_inputs[(i << 1) + 1], 4))
+			{
+				printf("Gamepad %i - R button state: %i\n", i, GETBIT(inputs[(i << 1) + 1], 4));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TR, GETBIT(inputs[(i << 1) + 1], 4));
+			}
+
+			if (GETBIT(changed_inputs[(i << 1) + 1], 5))
+			{
+				printf("Gamepad %i - L button state: %i\n", i, GETBIT(inputs[(i << 1) + 1], 5));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TL, GETBIT(inputs[(i << 1) + 1], 5));
+			}
+
+			if (GETBIT(changed_inputs[(i << 1) + 1], 6))
+			{
+				printf("Gamepad %i - X button state: %i\n", i, GETBIT(inputs[(i << 1) + 1], 6));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_X, GETBIT(inputs[(i << 1) + 1], 6));
+			}
+
+			if (GETBIT(changed_inputs[(i << 1) + 1], 7))
+			{
+				printf("Gamepad %i - A button state: %i\n", i, GETBIT(inputs[(i << 1) + 1], 7));
+				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_A, GETBIT(inputs[(i << 1) + 1], 7));
+			}
 		}
 	} while (true);
 		

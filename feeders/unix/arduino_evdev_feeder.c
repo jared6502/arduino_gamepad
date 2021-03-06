@@ -8,7 +8,7 @@
 #include <libevdev-uinput.h>
 
 //#define serial_file
-#define DEBUG
+//#define DEBUG
 //#define READTEST
 
 #ifndef DEBUG
@@ -132,26 +132,41 @@ int main(int argc, char **argv)
 	#endif
 
 	printf("Serial port opened, creating devices...\n");
-	 
+	
+	//this is the button mapping
+	//due to not having a separate definition for UDLR vs ABXY for some unknown reason, they had to be mapped to something else
+	//A			BTN_C
+	//B			BTN_Z
+	//X			BTN_TL2
+	//Y			BTN_TR2
+	//START		BTN_START
+	//SELECT	BTN_SELECT
+	//L			BTN_TL
+	//R			BTN_TR
+	//^			BTN_NORTH
+	//v			BTN_SOUTH
+	//<			BTN_WEST
+	//>			BTN_EAST
+
 	//create pseudo-devices	
 	for (i = 0; i < DEVCOUNT; i++)
 	{
 		dev[i] = libevdev_new();
 		devname[7] = '0' + i;
 		libevdev_set_name(dev[i], devname);
-		libevdev_enable_event_type(dev[i], EV_KEY);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_A, NULL);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_B, NULL);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_X, NULL);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_Y, NULL);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_START, NULL);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_SELECT, NULL);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_NORTH, NULL);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_EAST, NULL);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_SOUTH, NULL);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_WEST, NULL);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_TL, NULL);
-		libevdev_enable_event_code(dev[i], EV_KEY, BTN_TR, NULL);
+		printf("libevdev_enable_event_type dev %i - %i\n", i, libevdev_enable_event_type(dev[i], EV_KEY));
+		printf("libevdev_enable_event_code(BTN_A) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_C, NULL));
+		printf("libevdev_enable_event_code(BTN_B) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_Z, NULL));
+		printf("libevdev_enable_event_code(BTN_X) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_TL2, NULL));
+		printf("libevdev_enable_event_code(BTN_Y) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_TR2, NULL));
+		printf("libevdev_enable_event_code(BTN_START) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_START, NULL));
+		printf("libevdev_enable_event_code(BTN_SELECT) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_SELECT, NULL));
+		printf("libevdev_enable_event_code(BTN_NORTH) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_NORTH, NULL));
+		printf("libevdev_enable_event_code(BTN_EAST) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_EAST, NULL));
+		printf("libevdev_enable_event_code(BTN_SOUTH) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_SOUTH, NULL));
+		printf("libevdev_enable_event_code(BTN_WEST) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_WEST, NULL));
+		printf("libevdev_enable_event_code(BTN_TL) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_TL, NULL));
+		printf("libevdev_enable_event_code(BTN_TR) dev %i - %i\n", i, libevdev_enable_event_code(dev[i], EV_KEY, BTN_TR, NULL));
 		
 		err[i] = libevdev_uinput_create_from_device(dev[i], LIBEVDEV_UINPUT_OPEN_MANAGED, &uidev[i]);
 		
@@ -207,74 +222,76 @@ int main(int argc, char **argv)
 			if (GETBIT(changed_inputs[i << 1], 0))
 			{
 				printf("Gamepad %i - > button state: %i\n", i, GETBIT(inputs[i << 1], 0));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_EAST, GETBIT(inputs[i << 1], 0));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_EAST, GETBIT(inputs[i << 1], 0)));
 			}
 
 			if (GETBIT(changed_inputs[i << 1], 1))
 			{
 				printf("Gamepad %i - < button state: %i\n", i, GETBIT(inputs[i << 1], 1));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_WEST, GETBIT(inputs[i << 1], 1));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_WEST, GETBIT(inputs[i << 1], 1)));
 			}
 
 			if (GETBIT(changed_inputs[i << 1], 2))
 			{
 				printf("Gamepad %i - v button state: %i\n", i, GETBIT(inputs[i << 1], 2));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_SOUTH, GETBIT(inputs[i << 1], 2));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_SOUTH, GETBIT(inputs[i << 1], 2)));
 			}
 
 			if (GETBIT(changed_inputs[i << 1], 3))
 			{
 				printf("Gamepad %i - ^ button state: %i\n", i, GETBIT(inputs[i << 1], 3));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_NORTH, GETBIT(inputs[i << 1], 3));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_NORTH, GETBIT(inputs[i << 1], 3)));
 			}
 
 			if (GETBIT(changed_inputs[i << 1], 4))
 			{
 				printf("Gamepad %i - START button state: %i\n", i, GETBIT(inputs[i << 1], 4));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_START, GETBIT(inputs[i << 1], 4));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_START, GETBIT(inputs[i << 1], 4)));
 			}
 
 			if (GETBIT(changed_inputs[i << 1], 5))
 			{
 				printf("Gamepad %i - SELECT button state: %i\n", i, GETBIT(inputs[i << 1], 5));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_START, GETBIT(inputs[i << 1], 5));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_SELECT, GETBIT(inputs[i << 1], 5)));
 			}
 
 			if (GETBIT(changed_inputs[i << 1], 6))
 			{
 				printf("Gamepad %i - Y button state: %i\n", i, GETBIT(inputs[i << 1], 6));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_Y, GETBIT(inputs[i << 1], 6));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TR2, GETBIT(inputs[i << 1], 6)));
 			}
 
 			if (GETBIT(changed_inputs[i << 1], 7))
 			{
 				printf("Gamepad %i - B button state: %i\n", i, GETBIT(inputs[i << 1], 7));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_B, GETBIT(inputs[i << 1], 7));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_Z, GETBIT(inputs[i << 1], 7)));
 			}
 
 			if (GETBIT(changed_inputs[(i << 1) + 1], 4))
 			{
 				printf("Gamepad %i - R button state: %i\n", i, GETBIT(inputs[(i << 1) + 1], 4));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TR, GETBIT(inputs[(i << 1) + 1], 4));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TR, GETBIT(inputs[(i << 1) + 1], 4)));
 			}
 
 			if (GETBIT(changed_inputs[(i << 1) + 1], 5))
 			{
 				printf("Gamepad %i - L button state: %i\n", i, GETBIT(inputs[(i << 1) + 1], 5));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TL, GETBIT(inputs[(i << 1) + 1], 5));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TL, GETBIT(inputs[(i << 1) + 1], 5)));
 			}
 
 			if (GETBIT(changed_inputs[(i << 1) + 1], 6))
 			{
 				printf("Gamepad %i - X button state: %i\n", i, GETBIT(inputs[(i << 1) + 1], 6));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_X, GETBIT(inputs[(i << 1) + 1], 6));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_TL2, GETBIT(inputs[(i << 1) + 1], 6)));
 			}
 
 			if (GETBIT(changed_inputs[(i << 1) + 1], 7))
 			{
 				printf("Gamepad %i - A button state: %i\n", i, GETBIT(inputs[(i << 1) + 1], 7));
-				libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_A, GETBIT(inputs[(i << 1) + 1], 7));
+				printf("libevdev_uinput_write_event dev %i - %i\n", i, libevdev_uinput_write_event(uidev[i], EV_KEY, BTN_C, GETBIT(inputs[(i << 1) + 1], 7)));
 			}
+
+			libevdev_uinput_write_event(uidev[i], EV_SYN, SYN_REPORT, 0);
 		}
 	} while (true);
 		
